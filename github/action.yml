@@ -23,6 +23,7 @@ runs:
     - name: Install opencode
       shell: bash
       run: |
+        npm install -g bun
         git clone https://github.com/sst/opencode.git
         cd opencode
         bun i
