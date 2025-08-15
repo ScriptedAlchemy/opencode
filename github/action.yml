@@ -33,7 +33,9 @@ runs:
       shell: bash
       id: run_opencode
       #run: opencode github run
-      run: bun opencode/packages/opencode/src/index.ts github run
+      run: |
+        cd opencode/packages/opencode
+        bun dev github run
       env:
         MODEL: ${{ inputs.model }}
         SHARE: ${{ inputs.share }}
