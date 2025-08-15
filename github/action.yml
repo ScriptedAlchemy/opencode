@@ -16,14 +16,18 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Install opencode
-      shell: bash
-      run: curl -fsSL https://opencode.ai/install | bash
+    #    - name: Install opencode
+    #      shell: bash
+    #      run: curl -fsSL https://opencode.ai/install | bash
+
+    - run: git clone https://github.com/sst/opencode.git
+    - run: cd opencode && bun i && cd ..
 
     - name: Run opencode
       shell: bash
       id: run_opencode
-      run: opencode github run
+      #run: opencode github run
+      run: bun opencode/packages/opencode/src/index.ts github run
       env:
         MODEL: ${{ inputs.model }}
         SHARE: ${{ inputs.share }}
