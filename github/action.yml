@@ -20,8 +20,13 @@ runs:
     #      shell: bash
     #      run: curl -fsSL https://opencode.ai/install | bash
 
-    - run: git clone https://github.com/sst/opencode.git
-    - run: cd opencode && bun i && cd ..
+    - name: Install opencode
+      shell: bash
+      run: |
+        git clone https://github.com/sst/opencode.git
+        cd opencode
+        bun i
+        cd ..
 
     - name: Run opencode
       shell: bash
