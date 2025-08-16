@@ -130,7 +130,6 @@ let exitCode = 0
 type PromptFiles = Awaited<ReturnType<typeof getUserPrompt>>["promptFiles"]
 
 assertContextEvent("issue_comment")
-throw new Error("Not implemented")
 
 try {
   accessToken = await getAccessToken()
@@ -230,6 +229,8 @@ process.exit(exitCode)
 
 function assertContextEvent(...events: string[]) {
   const context = useContext()
+  // TODO
+  console.log(context)
   if (events.includes(context.eventName)) {
     core.setFailed(`Unsupported event type: ${context.eventName}`)
     process.exit(1)
