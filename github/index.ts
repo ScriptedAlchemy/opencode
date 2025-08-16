@@ -111,8 +111,7 @@ type IssueQueryResponse = {
   }
 }
 
-const host = "localhost"
-const server = await createOpencodeServer({ host })
+const server = await createOpencodeServer()
 const client = createOpencodeClient({ baseUrl: server.url })
 
 let input = {
@@ -147,6 +146,11 @@ try {
 
   // Setup opencode session
   const repoData = await fetchRepo()
+
+  // TODO
+  const d = await client.app.get<true>()
+  console.log("!@#!@#!", d)
+
   session = await client.session.create<true>().then((r) => r.data)
   subscribeSessionEvents()
   shareId = await (async () => {
