@@ -112,7 +112,7 @@ type IssueQueryResponse = {
 }
 
 const server = await createOpencodeServer()
-const client = createOpencodeClient({ baseUrl: server.url })
+const client = createOpencodeClient()
 
 let input = {
   mockEvent: process.env["MOCK_EVENT"],
