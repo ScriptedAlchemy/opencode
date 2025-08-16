@@ -245,8 +245,9 @@ async function assertOpencodeConnected() {
   let retry = 0
   let connected = false
   do {
+    console.log("!@#!@#!@# TRYING")
     try {
-      await client.app.get<false>()
+      await client.app.get<true>()
       connected = true
       break
     } catch (e) {}
@@ -261,8 +262,7 @@ async function assertOpencodeConnected() {
 function assertContextEvent(...events: string[]) {
   const context = useContext()
   if (!events.includes(context.eventName)) {
-    core.setFailed(`Unsupported event type: ${context.eventName}`)
-    process.exit(1)
+    throw new Error(`Unsupported event type: ${context.eventName}`)
   }
   return context
 }
