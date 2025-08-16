@@ -111,8 +111,8 @@ type IssueQueryResponse = {
   }
 }
 
-const port = 4096
-const server = await createOpencodeServer({ port })
+const host = "localhost"
+const server = await createOpencodeServer({ host })
 const client = createOpencodeClient({ baseUrl: server.url })
 
 let input = {
