@@ -16,10 +16,10 @@ inputs:
 runs:
   using: "composite"
   steps:
-    #    - name: Install opencode
-    #      shell: bash
-    #      run: curl -fsSL https://opencode.ai/install | bash
-    #
+    - name: Install opencode
+      shell: bash
+      run: curl -fsSL https://opencode.ai/install | bash
+
     #    - name: Run opencode
     #      shell: bash
     #      id: run_opencode
