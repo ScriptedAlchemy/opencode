@@ -6,7 +6,8 @@ import * as core from "@actions/core"
 import * as github from "@actions/github"
 import type { Context as GitHubContext } from "@actions/github/lib/context"
 import type { IssueCommentEvent } from "@octokit/webhooks-types"
-import { createOpencodeServer, createOpencodeClient } from "@opencode-ai/sdk"
+import { createOpencodeClient } from "@opencode-ai/sdk"
+import { spawn } from "node:child_process"
 
 type GitHubAuthor = {
   login: string
@@ -111,9 +112,7 @@ type IssueQueryResponse = {
   }
 }
 
-const server = await createOpencodeServer()
-const client = createOpencodeClient()
-
+const { client, server } = createOpencode()
 let input = {
   mockEvent: process.env["MOCK_EVENT"],
   mockToken: process.env["MOCK_TOKEN"],
@@ -128,9 +127,11 @@ let shareId: string | undefined
 let exitCode = 0
 type PromptFiles = Awaited<ReturnType<typeof getUserPrompt>>["promptFiles"]
 
-assertContextEvent("issue_comment")
-
 try {
+  await assertOpencodeConnected()
+
+  assertContextEvent("issue_comment")
+
   accessToken = await getAccessToken()
   octoRest = new Octokit({ auth: accessToken })
   octoGraph = graphql.defaults({
@@ -146,11 +147,6 @@ try {
 
   // Setup opencode session
   const repoData = await fetchRepo()
-
-  // TODO
-  const d = await client.app.get<true>()
-  console.log("!@#!@#!", d)
-
   session = await client.session.create<true>().then((r) => r.data)
   subscribeSessionEvents()
   shareId = await (async () => {
@@ -226,10 +222,41 @@ try {
   // Also output the clean error message for the action to capture
   //core.setOutput("prepare_error", e.message);
 } finally {
+  server.close()
   await restoreGitConfig()
   await revokeAppToken()
 }
 process.exit(exitCode)
+
+function createOpencode() {
+  const host = "127.0.0.1"
+  const port = 4096
+  const url = `http://${host}:${port}`
+  const proc = spawn(`opencode`, [`serve`, `--hostname=${host}`, `--port=${port}`])
+  const client = createOpencodeClient({ baseUrl: url })
+
+  return {
+    server: { url, close: () => proc.kill() },
+    client,
+  }
+}
+
+async function assertOpencodeConnected() {
+  let retry = 0
+  let connected = false
+  do {
+    try {
+      await client.app.get<false>()
+      connected = true
+      break
+    } catch (e) {}
+    await new Promise((resolve) => setTimeout(resolve, 200))
+  } while (retry++ < 10)
+
+  if (!connected) {
+    throw new Error("Failed to connect to opencode server")
+  }
+}
 
 function assertContextEvent(...events: string[]) {
   const context = useContext()
