@@ -130,6 +130,7 @@ let exitCode = 0
 type PromptFiles = Awaited<ReturnType<typeof getUserPrompt>>["promptFiles"]
 
 assertContextEvent("issue_comment")
+throw new Error("Not implemented")
 
 try {
   accessToken = await getAccessToken()

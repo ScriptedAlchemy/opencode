@@ -32,10 +32,15 @@ runs:
       shell: bash
       run: npm install -g bun
 
+    - name: Install dependencies
+      shell: bash
+      run: |
+        cd ${GITHUB_ACTION_PATH}
+        bun install
+
     - name: Run opencode
       shell: bash
-      id: run_opencode
-      run: bun index.ts
+      run: bun ${GITHUB_ACTION_PATH}/index.ts
       env:
         MODEL: ${{ inputs.model }}
         SHARE: ${{ inputs.share }}
