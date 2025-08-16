@@ -19,23 +19,23 @@ runs:
     #    - name: Install opencode
     #      shell: bash
     #      run: curl -fsSL https://opencode.ai/install | bash
+    #
+    #    - name: Run opencode
+    #      shell: bash
+    #      id: run_opencode
+    #      run: opencode github run
+    #      env:
+    #        MODEL: ${{ inputs.model }}
+    #        SHARE: ${{ inputs.share }}
 
-    - name: Install opencode
+    - name: Install bun
       shell: bash
-      run: |
-        npm install -g bun
-        git clone https://github.com/sst/opencode.git
-        cd opencode
-        bun i
-        cd ..
+      run: curl -fsSL https://bun.com/install | bash
 
     - name: Run opencode
       shell: bash
       id: run_opencode
-      #run: opencode github run
-      run: |
-        cd opencode/packages/opencode
-        bun dev github run
+      run: bun index.ts
       env:
         MODEL: ${{ inputs.model }}
         SHARE: ${{ inputs.share }}
