@@ -30,7 +30,7 @@ runs:
 
     - name: Install bun
       shell: bash
-      run: curl -fsSL https://bun.com/install | bash
+      run: npm install -g bun
 
     - name: Run opencode
       shell: bash
