@@ -229,9 +229,7 @@ process.exit(exitCode)
 
 function assertContextEvent(...events: string[]) {
   const context = useContext()
-  // TODO
-  console.log(context)
-  if (events.includes(context.eventName)) {
+  if (!events.includes(context.eventName)) {
     core.setFailed(`Unsupported event type: ${context.eventName}`)
     process.exit(1)
   }
