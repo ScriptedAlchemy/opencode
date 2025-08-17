@@ -553,20 +553,8 @@ async function chat(text: string, files: PromptFiles = []) {
     },
   })
 
-  // TODO
-  console.log("!@#!@#!@# CHAT", chat.data)
-  console.log("!@#!@#!@# CHAT INFO", chat.data.info)
-  console.log("!@#!@#!@# CHAT PARGS", chat.data.parts)
-
-  const message = await client.session.message<true>({
-    path: {
-      id: chat.data.sessionID,
-      messageID: chat.data.id,
-    },
-  })
-  console.log("!@#!@#!@# MESSAGE", message.data)
-
-  const match = message.data.parts.findLast((p) => p.type === "text")
+  // @ts-ignore
+  const match = chat.data.parts.findLast((p) => p.type === "text")
   if (!match) throw new Error("Failed to parse the text response")
 
   return match.text
