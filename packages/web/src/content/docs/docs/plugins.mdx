@@ -97,6 +97,9 @@ All events currently emitted by opencode include:
 - **Storage**
   - `storage.write` – data written to storage
 
+This list was verified by scanning opencode's source for every `Bus.event`
+declaration, ensuring it reflects all currently emitted events.
+
 ```js title=".opencode/plugin/notification.js"
 export const NotificationPlugin = async ({ client, $ }) => {
   return {
