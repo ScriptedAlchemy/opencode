@@ -59,6 +59,168 @@ export const MyPlugin: Plugin = async ({ app, client, $ }) => {
 
 ---
 
+## Hooks
+
+Plugins return an object where each key implements a specific hook. The following hooks are available:
+
+---
+
+### `event`
+
+Called for every event emitted by opencode.
+
+All events currently emitted by opencode include:
+
+- **Server**
+  - `server.connected` – CLI server has connected
+- **LSP**
+  - `lsp.client.diagnostics` – language server published diagnostics
+- **Installation**
+  - `installation.updated` – opencode installation changed
+  - `ide.installed` – IDE extension installed
+- **Permissions**
+  - `permission.updated` – permission status changed
+  - `permission.replied` – permission prompt answered
+- **Sessions**
+  - `session.updated` – session information changed
+  - `session.deleted` – session removed
+  - `session.idle` – no tasks running in the session
+  - `session.error` – session encountered an error
+- **Messages**
+  - `message.updated` – message content updated
+  - `message.removed` – message deleted
+  - `message.part.updated` – a message part changed
+  - `message.part.removed` – a message part removed
+- **Files**
+  - `file.edited` – file modified
+  - `file.watcher.updated` – file system change detected
+- **Storage**
+  - `storage.write` – data written to storage
+
+```js title=".opencode/plugin/notification.js"
+export const NotificationPlugin = async ({ client, $ }) => {
+  return {
+    event: async ({ event }) => {
+      // Send notification on session completion
+      if (event.type === "session.idle") {
+        await $`osascript -e 'display notification "Session completed!" with title "opencode"'`
+      }
+    },
+  }
+}
+```
+
+---
+
+### `auth`
+
+Register custom authentication methods for a provider. Useful for API tokens or OAuth flows.
+
+```ts title=".opencode/plugin/auth.ts" {1}
+import type { Plugin } from "@opencode-ai/plugin"
+
+export const CustomAuth: Plugin = async () => {
+  return {
+    auth: {
+      provider: "example",
+      methods: [
+        {
+          type: "api",
+          label: "API token",
+        },
+      ],
+    },
+  }
+}
+```
+
+---
+
+### `"chat.message"`
+
+Runs after a new user message is stored. The hook receives the message and its parts.
+
+```js title=".opencode/plugin/log.js"
+export const LogMessages = async () => {
+  return {
+    "chat.message": async (_input, output) => {
+      await Bun.write("messages.log", JSON.stringify(output) + "\n", { append: true })
+    },
+  }
+}
+```
+
+---
+
+### `"chat.params"`
+
+Modify the parameters sent to the language model before each request.
+
+```js title=".opencode/plugin/params.js"
+export const HotTemperatures = async () => {
+  return {
+    "chat.params": async (_input, output) => {
+      output.temperature = 1
+      output.options.maxTokens = 2048
+    },
+  }
+}
+```
+
+---
+
+### `"permission.ask"`
+
+Intercept permission prompts and decide whether to ask, allow, or deny.
+
+```js title=".opencode/plugin/permissions.js"
+export const SilentPermissions = async () => {
+  return {
+    "permission.ask": async (input, output) => {
+      if (input.type === "filesystem" && input.title.includes("secrets")) {
+        output.status = "deny"
+      }
+    },
+  }
+}
+```
+
+---
+
+### `"tool.execute.before"`
+
+Runs before a tool executes. You can modify arguments or block execution.
+
+```js title=".opencode/plugin/env-protection.js"
+export const EnvProtection = async () => {
+  return {
+    "tool.execute.before": async (input, output) => {
+      if (input.tool === "read" && output.args.filePath.includes(".env")) {
+        throw new Error("Do not read .env files")
+      }
+    },
+  }
+}
+```
+
+---
+
+### `"tool.execute.after"`
+
+Runs after a tool finishes, letting you inspect or augment the result.
+
+```js title=".opencode/plugin/log-tools.js"
+export const ToolLogger = async () => {
+  return {
+    "tool.execute.after": async (input, output) => {
+      console.log(`${input.tool} produced ${output.title}`)
+    },
+  }
+}
+```
+
+---
+
 ## Examples
 
 Here are some examples of plugins you can use to extend opencode.
