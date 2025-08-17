@@ -69,7 +69,7 @@ export default defineConfig({
 
         {
           label: "Usage",
-          items: ["docs/cli", "docs/ide", "docs/share", "docs/github"],
+          items: ["docs/cli", "docs/server", "docs/ide", "docs/share", "docs/github"],
         },
 
         {
