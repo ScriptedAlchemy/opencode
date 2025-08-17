@@ -148,7 +148,7 @@ try {
   // Setup opencode session
   const repoData = await fetchRepo()
   session = await client.session.create<true>().then((r) => r.data)
-  subscribeSessionEvents()
+  await subscribeSessionEvents()
   shareId = await (async () => {
     if (useShare() === false) return
     if (!useShare() && repoData.data.private) return
@@ -434,7 +434,7 @@ async function getUserPrompt() {
   return { userPrompt: prompt, promptFiles: imgData }
 }
 
-function subscribeSessionEvents() {
+async function subscribeSessionEvents() {
   console.log("Subscribing to session events...")
 
   const TOOL: Record<string, [string, string]> = {
@@ -450,21 +450,16 @@ function subscribeSessionEvents() {
     websearch: ["Search", "\x1b[2m\x1b[1m"],
   }
 
-  function printEvent(color: string, type: string, title: string) {
-    console.log(color + `|`, "\x1b[0m\x1b[2m" + ` ${type.padEnd(7, " ")}`, "", "\x1b[0m" + title)
-  }
+  const response = await fetch(`${server.url}/event`)
+  if (!response.body) throw new Error("No response body")
+  // TODO
+  console.log("!@#!@#!@#! fetched", response.body)
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
 
   let text = ""
   ;(async () => {
-    // TODO
-    console.log("Subscribing to session events: fetching...")
-    const response = await fetch(`${server.url}/event`)
-    if (!response.body) throw new Error("No response body")
-    console.log("Subscribing to session events: fetched")
-
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
@@ -492,7 +487,7 @@ function subscribeSessionEvents() {
                 ? JSON.stringify(part.state.input)
                 : "Unknown"
             console.log()
-            printEvent(color, tool, title)
+            console.log(color + `|`, "\x1b[0m\x1b[2m" + ` ${tool.padEnd(7, " ")}`, "", "\x1b[0m" + title)
           }
 
           if (part.type === "text") {
