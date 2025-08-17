@@ -555,6 +555,8 @@ async function chat(text: string, files: PromptFiles = []) {
 
   // TODO
   console.log("!@#!@#!@# CHAT", chat.data)
+  console.log("!@#!@#!@# CHAT INFO", chat.data.info)
+  console.log("!@#!@#!@# CHAT PARGS", chat.data.parts)
 
   const message = await client.session.message<true>({
     path: {
