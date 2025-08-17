@@ -34,12 +34,12 @@ Use the spec to generate clients or inspect request and response types. All exam
 
 ### App & Config
 
-| Method | Path                | Description                       |
-| ------ | ------------------- | --------------------------------- |
-| `GET`  | `/app`              | Get app info                      |
-| `POST` | `/app/init`         | Initialize the app                |
-| `GET`  | `/config`           | Get config info                   |
-| `GET`  | `/config/providers` | List providers and default models | Returns `{ providers: `[`Provider[]`](packages/sdk/js/src/gen/types.gen.ts)`, default: { [key: string]: string } }` |
+| Method | Path                | Description                       | Response |
+| ------ | ------------------- | --------------------------------- | -------- |
+| `GET`  | `/app`              | Get app info                      | [`App`](packages/sdk/js/src/gen/types.gen.ts) |
+| `POST` | `/app/init`         | Initialize the app                | `boolean` |
+| `GET`  | `/config`           | Get config info                   | [`Config`](packages/sdk/js/src/gen/types.gen.ts) |
+| `GET`  | `/config/providers` | List providers and default models | `{ providers: `[`Provider[]`](packages/sdk/js/src/gen/types.gen.ts)`, default: { [key: string]: string } }` |
 
 ### Sessions
 
@@ -66,19 +66,19 @@ Use the spec to generate clients or inspect request and response types. All exam
 
 ### Search & Files
 
-| Method | Path                     | Description                  |
-| ------ | ------------------------ | ---------------------------- |
-| `GET`  | `/find?pattern=<pat>`    | Search for text in files     |
-| `GET`  | `/find/file?query=<q>`   | Find files by name           |
-| `GET`  | `/find/symbol?query=<q>` | Find workspace symbols       | Returns [`Symbol[]`](packages/sdk/js/src/gen/types.gen.ts) |
-| `GET`  | `/file?path=<path>`      | Read a file                  |
-| `GET`  | `/file/status`           | Get status for tracked files |
+| Method | Path                     | Description                  | Response |
+| ------ | ------------------------ | ---------------------------- | -------- |
+| `GET`  | `/find?pattern=<pat>`    | Search for text in files     | Array of match objects with `path`, `lines`, `line_number`, `absolute_offset`, `submatches` |
+| `GET`  | `/find/file?query=<q>`   | Find files by name           | `string[]` (file paths) |
+| `GET`  | `/find/symbol?query=<q>` | Find workspace symbols       | [`Symbol[]`](packages/sdk/js/src/gen/types.gen.ts) |
+| `GET`  | `/file?path=<path>`      | Read a file                  | `{ type: "raw" \| "patch", content: string }` |
+| `GET`  | `/file/status`           | Get status for tracked files | [`File[]`](packages/sdk/js/src/gen/types.gen.ts) |
 
 ### Logging
 
-| Method | Path   | Description                                                      |
-| ------ | ------ | ---------------------------------------------------------------- |
-| `POST` | `/log` | Write log entry. Body: `{ service, level, message, extra? }`    |
+| Method | Path   | Description                                                      | Response |
+| ------ | ------ | ---------------------------------------------------------------- | -------- |
+| `POST` | `/log` | Write log entry. Body: `{ service, level, message, extra? }`    | `boolean` |
 
 ### Agents
 
@@ -88,37 +88,37 @@ Use the spec to generate clients or inspect request and response types. All exam
 
 ### TUI Control
 
-| Method       | Path                   | Description                                 |
-| ------------ | ---------------------- | ------------------------------------------- |
-| `POST`       | `/tui/append-prompt`   | Append text to the prompt                   |
-| `POST`       | `/tui/open-help`       | Open the help dialog                        |
-| `POST`       | `/tui/open-sessions`   | Open the session selector                   |
-| `POST`       | `/tui/open-themes`     | Open the theme selector                     |
-| `POST`       | `/tui/open-models`     | Open the model selector                     |
-| `POST`       | `/tui/submit-prompt`   | Submit the current prompt                   |
-| `POST`       | `/tui/clear-prompt`    | Clear the prompt                            |
-| `POST`       | `/tui/execute-command` | Execute a command (`{ command }`)           |
-| `POST`       | `/tui/show-toast`      | Show toast (`{ title?, message, variant }`) |
-| `GET`        | `/tui/control/next`    | Wait for the next control request          |
-| `POST`       | `/tui/control/response` | Respond to a control request (`{ body }`)   |
+| Method       | Path                   | Description                                 | Response |
+| ------------ | ---------------------- | ------------------------------------------- | -------- |
+| `POST`       | `/tui/append-prompt`   | Append text to the prompt                   | `boolean` |
+| `POST`       | `/tui/open-help`       | Open the help dialog                        | `boolean` |
+| `POST`       | `/tui/open-sessions`   | Open the session selector                   | `boolean` |
+| `POST`       | `/tui/open-themes`     | Open the theme selector                     | `boolean` |
+| `POST`       | `/tui/open-models`     | Open the model selector                     | `boolean` |
+| `POST`       | `/tui/submit-prompt`   | Submit the current prompt                   | `boolean` |
+| `POST`       | `/tui/clear-prompt`    | Clear the prompt                            | `boolean` |
+| `POST`       | `/tui/execute-command` | Execute a command (`{ command }`)           | `boolean` |
+| `POST`       | `/tui/show-toast`      | Show toast (`{ title?, message, variant }`) | `boolean` |
+| `GET`        | `/tui/control/next`    | Wait for the next control request          | Control request object |
+| `POST`       | `/tui/control/response` | Respond to a control request (`{ body }`)   | `boolean` |
 
 ### Authentication
 
-| Method | Path        | Description                                                      |
-| ------ | ----------- | ---------------------------------------------------------------- |
-| `PUT`  | `/auth/:id` | Set authentication credentials. Body must match provider schema  |
+| Method | Path        | Description                                                      | Response |
+| ------ | ----------- | ---------------------------------------------------------------- | -------- |
+| `PUT`  | `/auth/:id` | Set authentication credentials. Body must match provider schema  | `boolean` |
 
 ### Events
 
-| Method | Path     | Description                                                                    |
-| ------ | -------- | ------------------------------------------------------------------------------ |
-| `GET`  | `/event` | Server-sent events stream. First event is `server.connected`, then bus events |
+| Method | Path     | Description                                                                    | Response |
+| ------ | -------- | ------------------------------------------------------------------------------ | -------- |
+| `GET`  | `/event` | Server-sent events stream. First event is `server.connected`, then bus events | Server-sent events stream |
 
 ### Documentation
 
-| Method | Path   | Description                           |
-| ------ | ------ | ------------------------------------- |
-| `GET`  | `/doc`  | OpenAPI 3.1 specification and explorer |
+| Method | Path   | Description                           | Response |
+| ------ | ------ | ------------------------------------- | -------- |
+| `GET`  | `/doc`  | OpenAPI 3.1 specification and explorer | HTML page with OpenAPI spec and Swagger UI |
 
 ## Example
 
