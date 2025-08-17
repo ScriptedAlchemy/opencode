@@ -232,7 +232,10 @@ function createOpencode() {
   const host = "127.0.0.1"
   const port = 4096
   const url = `http://${host}:${port}`
-  const proc = spawn(`opencode`, [`serve`, `--hostname=${host}`, `--port=${port}`])
+  const proc = spawn(`opencode`, [`serve`, `--hostname=${host}`, `--port=${port}`], {
+    // TODO
+    stdio: "inherit",
+  })
   const client = createOpencodeClient({ baseUrl: url })
 
   return {
