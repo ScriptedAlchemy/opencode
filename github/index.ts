@@ -248,6 +248,7 @@ async function assertOpencodeConnected() {
   let retry = 0
   let connected = false
   do {
+    // TODO
     console.log("!@#!@#!@# TRYING")
     try {
       await client.app.get<true>()
@@ -520,50 +521,50 @@ async function chat(text: string, files: PromptFiles = []) {
   console.log("Sending message to opencode...")
   const { providerID, modelID } = useModel()
 
-  const result = await client.session
-    .chat<true>({
-      path: session,
-      body: {
-        providerID,
-        modelID,
-        agent: "build",
-        parts: [
+  const chat = await client.session.chat<true>({
+    path: session,
+    body: {
+      providerID,
+      modelID,
+      agent: "build",
+      parts: [
+        {
+          type: "text",
+          text,
+        },
+        ...files.flatMap((f) => [
           {
-            type: "text",
-            text,
-          },
-          ...files.flatMap((f) => [
-            {
+            type: "file" as const,
+            mime: f.mime,
+            url: `data:${f.mime};base64,${f.content}`,
+            filename: f.filename,
+            source: {
               type: "file" as const,
-              mime: f.mime,
-              url: `data:${f.mime};base64,${f.content}`,
-              filename: f.filename,
-              source: {
-                type: "file" as const,
-                text: {
-                  value: f.replacement,
-                  start: f.start,
-                  end: f.end,
-                },
-                path: f.filename,
+              text: {
+                value: f.replacement,
+                start: f.start,
+                end: f.end,
               },
+              path: f.filename,
             },
-          ]),
-        ],
-      },
-    })
-    .then((r) => r.data)
+          },
+        ]),
+      ],
+    },
+  })
 
-  const message = await client.session
-    .message<true>({
-      path: {
-        id: result.sessionID,
-        messageID: result.id,
-      },
-    })
-    .then((r) => r.data)
+  // TODO
+  console.log("!@#!@#!@# CHAT", chat.data)
 
-  const match = message.parts.findLast((p) => p.type === "text")
+  const message = await client.session.message<true>({
+    path: {
+      id: chat.data.sessionID,
+      messageID: chat.data.id,
+    },
+  })
+  console.log("!@#!@#!@# MESSAGE", message.data)
+
+  const match = message.data.parts.findLast((p) => p.type === "text")
   if (!match) throw new Error("Failed to parse the text response")
 
   return match.text
