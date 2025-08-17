@@ -255,8 +255,8 @@ async function assertOpencodeConnected() {
       connected = true
       break
     } catch (e) {}
-    await new Promise((resolve) => setTimeout(resolve, 200))
-  } while (retry++ < 10)
+    await new Promise((resolve) => setTimeout(resolve, 300))
+  } while (retry++ < 30)
 
   if (!connected) {
     throw new Error("Failed to connect to opencode server")
