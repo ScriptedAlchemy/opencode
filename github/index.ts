@@ -435,6 +435,8 @@ async function getUserPrompt() {
 }
 
 function subscribeSessionEvents() {
+  console.log("Subscribing to session events...")
+
   const TOOL: Record<string, [string, string]> = {
     todowrite: ["Todo", "\x1b[33m\x1b[1m"],
     todoread: ["Todo", "\x1b[33m\x1b[1m"],
@@ -454,8 +456,11 @@ function subscribeSessionEvents() {
 
   let text = ""
   ;(async () => {
+    // TODO
+    console.log("Subscribing to session events: fetching...")
     const response = await fetch(`${server.url}/event`)
     if (!response.body) throw new Error("No response body")
+    console.log("Subscribing to session events: fetched")
 
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
