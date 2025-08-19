@@ -59,6 +59,392 @@ export const MyPlugin: Plugin = async ({ app, client, $ }) => {
 
 ---
 
+## Hooks
+
+Plugins return an object where each key implements a specific hook. All hooks are optional, and you only need to implement the ones your plugin requires.
+
+### Complete list of available hooks
+
+| Hook | Description | Input | Output |
+|------|-------------|-------|--------|
+| `event` | Called for every event emitted by opencode | `{ event: Event }` | `void` |
+| `auth` | Register custom authentication methods | N/A | Auth configuration object |
+| `"chat.message"` | Runs after a new user message is stored | `{}` | `{ message: UserMessage; parts: Part[] }` |
+| `"chat.params"` | Modify parameters sent to the language model | `{ model: Model; provider: Provider; message: UserMessage }` | `{ temperature: number; topP: number; options: Record<string, any> }` |
+| `"permission.ask"` | Intercept permission prompts | `Permission` | `{ status: "ask" \| "deny" \| "allow" }` |
+| `"tool.execute.before"` | Runs before a tool executes | `{ tool: string; sessionID: string; callID: string }` | `{ args: any }` |
+| `"tool.execute.after"` | Runs after a tool finishes | `{ tool: string; sessionID: string; callID: string }` | `{ title: string; output: string; metadata: any }` |
+
+---
+
+### `event`
+
+Called for every event emitted by opencode. See the Event system section below for the full list of events and their payload shapes.
+
+This list was verified by scanning opencode's source for every `Bus.event`
+declaration, ensuring it reflects all currently emitted events.
+
+```js title=".opencode/plugin/notification.js"
+export const NotificationPlugin = async ({ client, $ }) => {
+  return {
+    event: async ({ event }) => {
+      // Send notification on session completion
+      if (event.type === "session.idle") {
+        await $`osascript -e 'display notification "Session completed!" with title "opencode"'`
+      }
+    },
+  }
+}
+```
+
+---
+
+### `auth`
+
+Register custom authentication methods for a provider. Useful for API tokens or OAuth flows.
+
+**Configuration object:**
+- `provider` (string): The provider identifier
+- `loader?` (function): Optional function to load authentication data
+- `methods` (array): Array of authentication methods
+
+**Method types:**
+- `oauth`: OAuth-based authentication with `authorize()` function
+- `api`: API token-based authentication
+
+```ts title=".opencode/plugin/auth.ts" {1}
+import type { Plugin } from "@opencode-ai/plugin"
+
+export const CustomAuth: Plugin = async () => {
+  return {
+    auth: {
+      provider: "example",
+      methods: [
+        {
+          type: "api",
+          label: "API token",
+        },
+        {
+          type: "oauth",
+          label: "OAuth login",
+          authorize: async () => {
+            return {
+              url: "https://example.com/oauth",
+              instructions: "Complete the OAuth flow",
+              method: "code",
+              callback: async (code) => {
+                // Handle OAuth callback
+                return { type: "success", refresh: "...", access: "...", expires: 3600 }
+              }
+            }
+          }
+        }
+      ],
+    },
+  }
+}
+```
+
+---
+
+### `"chat.message"`
+
+Runs after a new user message is stored. The hook receives the message and its parts.
+
+**Input:** `{}` (empty object)
+**Output:** `{ message: UserMessage; parts: Part[] }`
+
+```js title=".opencode/plugin/log.js"
+export const LogMessages = async () => {
+  return {
+    "chat.message": async (_input, output) => {
+      await Bun.write("messages.log", JSON.stringify(output) + "\n", { append: true })
+    },
+  }
+}
+```
+
+---
+
+### `"chat.params"`
+
+Modify the parameters sent to the language model before each request.
+
+**Input:** `{ model: Model; provider: Provider; message: UserMessage }`
+**Output:** `{ temperature: number; topP: number; options: Record<string, any> }`
+
+```js title=".opencode/plugin/params.js"
+export const HotTemperatures = async () => {
+  return {
+    "chat.params": async (input, output) => {
+      // Access model info: input.model, input.provider, input.message
+      output.temperature = 1
+      output.topP = 0.9
+      output.options.maxTokens = 2048
+    },
+  }
+}
+```
+
+---
+
+### `"permission.ask"`
+
+Intercept permission prompts and decide whether to ask, allow, or deny.
+
+**Input:** `Permission` object with details about the permission request
+**Output:** `{ status: "ask" | "deny" | "allow" }`
+
+```js title=".opencode/plugin/permissions.js"
+export const SilentPermissions = async () => {
+  return {
+    "permission.ask": async (input, output) => {
+      // input contains: type, title, sessionID, callID, metadata, etc.
+      if (input.type === "filesystem" && input.title.includes("secrets")) {
+        output.status = "deny"
+      } else if (input.type === "bash" && input.title.includes("safe-command")) {
+        output.status = "allow"
+      }
+      // Default: output.status remains "ask"
+    },
+  }
+}
+```
+
+---
+
+### `"tool.execute.before"`
+
+Runs before a tool executes. You can modify arguments or block execution by throwing an error.
+
+**Input:** `{ tool: string; sessionID: string; callID: string }`
+**Output:** `{ args: any }` (the tool arguments that can be modified)
+
+```js title=".opencode/plugin/env-protection.js"
+export const EnvProtection = async () => {
+  return {
+    "tool.execute.before": async (input, output) => {
+      // input.tool contains the tool name (e.g., "read", "write", "bash")
+      if (input.tool === "read" && output.args.filePath?.includes(".env")) {
+        throw new Error("Do not read .env files")
+      }
+      // Modify arguments if needed
+      if (input.tool === "write") {
+        output.args.backup = true // Add backup flag
+      }
+    },
+  }
+}
+```
+
+---
+
+### `"tool.execute.after"`
+
+Runs after a tool finishes, letting you inspect or augment the result.
+
+**Input:** `{ tool: string; sessionID: string; callID: string }`
+**Output:** `{ title: string; output: string; metadata: any }` (the tool result)
+
+```js title=".opencode/plugin/log-tools.js"
+export const ToolLogger = async () => {
+  return {
+    "tool.execute.after": async (input, output) => {
+      console.log(`Tool ${input.tool} executed:`, {
+        title: output.title,
+        outputLength: output.output.length,
+        metadata: output.metadata
+      })
+      
+      // You can modify the output that gets returned to the AI
+      if (input.tool === "bash" && output.output.includes("error")) {
+        output.title = `⚠️ ${output.title}`
+      }
+    },
+  }
+}
+```
+
+---
+
+## Event system
+
+In addition to the hooks above, plugins can subscribe to the Bus.event system which publishes events throughout opencode's lifecycle. These events are available through the `event` hook.
+
+### Available events
+
+All events follow a consistent payload structure with `type` (the event name) and `properties` (event-specific data):
+
+#### Server Events
+- **`server.connected`** — CLI server has connected
+  ```ts
+  { type: "server.connected", properties: {} }
+  ```
+
+#### LSP Events  
+- **`lsp.client.diagnostics`** — Language server published diagnostics
+  ```ts
+  { 
+    type: "lsp.client.diagnostics", 
+    properties: { serverID: string, path: string } 
+  }
+  ```
+
+#### Installation & IDE Events
+- **`installation.updated`** — opencode installation version changed
+  ```ts
+  { 
+    type: "installation.updated", 
+    properties: { version: string } 
+  }
+  ```
+- **`ide.installed`** — IDE extension was installed
+  ```ts
+  { 
+    type: "ide.installed", 
+    properties: { ide: string } 
+  }
+  ```
+
+#### Permission Events
+- **`permission.updated`** — Permission status changed
+  ```ts
+  { 
+    type: "permission.updated", 
+    properties: Permission.Info // Complex object with id, type, sessionID, etc.
+  }
+  ```
+- **`permission.replied`** — Permission prompt was answered
+  ```ts
+  { 
+    type: "permission.replied", 
+    properties: { sessionID: string, permissionID: string, response: string } 
+  }
+  ```
+
+#### Session Events
+- **`session.updated`** — Session information changed
+  ```ts
+  { 
+    type: "session.updated", 
+    properties: { info: Session.Info } 
+  }
+  ```
+- **`session.deleted`** — Session was removed
+  ```ts
+  { 
+    type: "session.deleted", 
+    properties: { info: Session.Info } 
+  }
+  ```
+- **`session.idle`** — No tasks running in the session
+  ```ts
+  { 
+    type: "session.idle", 
+    properties: { sessionID: string } 
+  }
+  ```
+- **`session.error`** — Session encountered an error
+  ```ts
+  { 
+    type: "session.error", 
+    properties: { sessionID?: string, error: any } 
+  }
+  ```
+
+#### Message Events
+- **`message.updated`** — Message content was updated
+  ```ts
+  { 
+    type: "message.updated", 
+    properties: { info: MessageV2.Info } 
+  }
+  ```
+- **`message.removed`** — Message was deleted
+  ```ts
+  { 
+    type: "message.removed", 
+    properties: { sessionID: string, messageID: string } 
+  }
+  ```
+- **`message.part.updated`** — A message part changed
+  ```ts
+  { 
+    type: "message.part.updated", 
+    properties: { part: MessageV2.Part } 
+  }
+  ```
+- **`message.part.removed`** — A message part was removed
+  ```ts
+  { 
+    type: "message.part.removed", 
+    properties: { sessionID: string, messageID: string, partID: string } 
+  }
+  ```
+
+#### File Events
+- **`file.edited`** — File was modified
+  ```ts
+  { 
+    type: "file.edited", 
+    properties: { file: string } 
+  }
+  ```
+- **`file.watcher.updated`** — File system change detected
+  ```ts
+  { 
+    type: "file.watcher.updated", 
+    properties: { file: string, event: "rename" | "change" } 
+  }
+  ```
+
+#### Storage Events
+- **`storage.write`** — Data was written to storage
+  ```ts
+  { 
+    type: "storage.write", 
+    properties: { key: string, content: any } 
+  }
+  ```
+
+### Example usage
+
+```js title=".opencode/plugin/event-logger.js"
+export const EventLogger = async ({ client, $ }) => {
+  return {
+    event: async ({ event }) => {
+      // Log all file changes
+      if (event.type === "file.edited") {
+        console.log(`File edited: ${event.properties.file}`)
+      }
+      
+      // React to session completion
+      if (event.type === "session.idle") {
+        await $`echo "Session ${event.properties.sessionID} completed"`
+      }
+      
+      // Handle errors
+      if (event.type === "session.error") {
+        console.error(`Session error:`, event.properties.error)
+      }
+    },
+  }
+}
+```
+
+---
+
+## Experimental configuration hooks
+
+In addition to the plugin system, opencode supports shell hooks configured in your `opencode.json` under `experimental.hook`:
+
+- `file_edited` — run a command when a file is edited. You can scope by file extension.
+- `session_completed` — run commands when a top-level session becomes idle.
+
+These are configured per-project and executed with the project's working directory and optional environment variables.
+
+---
+
 ## Examples
 
 Here are some examples of plugins you can use to extend opencode.
