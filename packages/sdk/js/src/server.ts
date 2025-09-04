@@ -28,7 +28,7 @@ export async function createOpencodeServer(options?: ServerOptions) {
     options ?? {},
   )
 
-  const proc = spawn(`opencode`, [`serve`, `--hostname=${options.hostname}`, `--port=${options.port}`], {
+  const proc = spawn(Bun.which(`opencode`), [`serve`, `--hostname=${options.hostname}`, `--port=${options.port}`], {
     signal: options.signal,
     env: {
       ...process.env,
