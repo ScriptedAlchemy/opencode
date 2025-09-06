@@ -50,6 +50,7 @@ export namespace Provider {
         },
         options: {
           headers: {
+            //todo need to check if this is needed
             originator: "codex_cli_rs",
           },
         },
@@ -298,27 +299,6 @@ export namespace Provider {
       )
       provider.info.models = filteredModels
 
-      // Create GPT-5 variants (minimal/low/medium/high) as aliases of base GPT-5
-      const hasGpt5Base = Object.keys(provider.info.models).find(
-        (m) =>
-          m.includes("gpt-5") && !m.includes("gpt-5-chat") && !m.includes("gpt-5-medium") && !m.includes("gpt-5-high"),
-      )
-      if (hasGpt5Base) {
-        const base = provider.info.models[hasGpt5Base]
-        const mk = (id: string, name: string) => {
-          provider.info.models[id] = {
-            ...base,
-            id,
-            name,
-            options: { ...base.options, aliasOf: hasGpt5Base },
-          }
-        }
-        if (!provider.info.models["gpt-5-minimal"]) mk("gpt-5-minimal", "GPT-5 Minimal")
-        if (!provider.info.models["gpt-5-low"]) mk("gpt-5-low", "GPT-5 Low")
-        if (!provider.info.models["gpt-5-medium"]) mk("gpt-5-medium", "GPT-5 Medium")
-        if (!provider.info.models["gpt-5-high"]) mk("gpt-5-high", "GPT-5 High")
-      }
-
       if (Object.keys(provider.info.models).length === 0) {
         delete providers[providerID]
         continue
@@ -387,8 +367,7 @@ export namespace Provider {
     const sdk = await getSDK(provider.info)
 
     try {
-      const target = (info.options as any)?.aliasOf || modelID
-      const language = provider.getModel ? await provider.getModel(sdk, target) : sdk.languageModel(target)
+      const language = provider.getModel ? await provider.getModel(sdk, modelID) : sdk.languageModel(modelID)
       log.info("found", { providerID, modelID })
       s.models.set(key, {
         providerID,
