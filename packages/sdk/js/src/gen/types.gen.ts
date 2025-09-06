@@ -1314,7 +1314,7 @@ export type ToolRegisterData = {
   query?: {
     directory?: string
   }
-  url: "/tool/register"
+  url: "/experimental/tool/register"
 }
 
 export type ToolRegisterErrors = {
@@ -1341,7 +1341,7 @@ export type ToolIdsData = {
   query?: {
     directory?: string
   }
-  url: "/tool/ids"
+  url: "/experimental/tool/ids"
 }
 
 export type ToolIdsErrors = {
@@ -1370,7 +1370,7 @@ export type ToolListData = {
     provider: string
     model: string
   }
-  url: "/tool"
+  url: "/experimental/tool"
 }
 
 export type ToolListErrors = {

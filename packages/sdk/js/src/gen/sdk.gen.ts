@@ -193,7 +193,7 @@ class Tool extends _HeyApiClient {
    */
   public register<ThrowOnError extends boolean = false>(options?: Options<ToolRegisterData, ThrowOnError>) {
     return (options?.client ?? this._client).post<ToolRegisterResponses, ToolRegisterErrors, ThrowOnError>({
-      url: "/tool/register",
+      url: "/experimental/tool/register",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -207,7 +207,7 @@ class Tool extends _HeyApiClient {
    */
   public ids<ThrowOnError extends boolean = false>(options?: Options<ToolIdsData, ThrowOnError>) {
     return (options?.client ?? this._client).get<ToolIdsResponses, ToolIdsErrors, ThrowOnError>({
-      url: "/tool/ids",
+      url: "/experimental/tool/ids",
       ...options,
     })
   }
@@ -217,7 +217,7 @@ class Tool extends _HeyApiClient {
    */
   public list<ThrowOnError extends boolean = false>(options: Options<ToolListData, ThrowOnError>) {
     return (options.client ?? this._client).get<ToolListResponses, ToolListErrors, ThrowOnError>({
-      url: "/tool",
+      url: "/experimental/tool",
       ...options,
     })
   }

@@ -33,21 +33,21 @@ describe("HTTP tool registration API", () => {
 
       // Register
       const registerRes = await Server.App.fetch(
-        makeRequest("POST", "http://localhost:4096/tool/register", toolSpec),
+        makeRequest("POST", "http://localhost:4096/experimental/tool/register", toolSpec),
       )
       expect(registerRes.status).toBe(200)
       const ok = await registerRes.json()
       expect(ok).toBe(true)
 
       // IDs should include the new tool
-      const idsRes = await Server.App.fetch(makeRequest("GET", "http://localhost:4096/tool/ids"))
+      const idsRes = await Server.App.fetch(makeRequest("GET", "http://localhost:4096/experimental/tool/ids"))
       expect(idsRes.status).toBe(200)
       const ids = (await idsRes.json()) as string[]
       expect(ids).toContain("http-echo")
 
       // List tools for a provider/model and check JSON Schema shape
       const listRes = await Server.App.fetch(
-        makeRequest("GET", "http://localhost:4096/tool?provider=openai&model=gpt-4o"),
+        makeRequest("GET", "http://localhost:4096/experimental/tool?provider=openai&model=gpt-4o"),
       )
       expect(listRes.status).toBe(200)
       const list = (await listRes.json()) as Array<{ id: string; description: string; parameters: any }>
@@ -61,9 +61,7 @@ describe("HTTP tool registration API", () => {
 
       const foo = found!.parameters?.properties?.foo
       // optional -> nullable for OpenAI/Azure providers; accept either type array including null or nullable: true
-      const fooIsNullable = Array.isArray(foo?.type)
-        ? foo.type.includes("null")
-        : foo?.nullable === true
+      const fooIsNullable = Array.isArray(foo?.type) ? foo.type.includes("null") : foo?.nullable === true
       expect(fooIsNullable).toBe(true)
     })
   })
@@ -93,10 +91,7 @@ describe("Plugin tool.register hook", () => {
     await Bun.write(tmpPluginPath, pluginCode)
 
     const configPath = path.join(tmpDir, "opencode.json")
-    await Bun.write(
-      configPath,
-      JSON.stringify({ plugin: ["file://" + tmpPluginPath] }, null, 2),
-    )
+    await Bun.write(configPath, JSON.stringify({ plugin: ["file://" + tmpPluginPath] }, null, 2))
 
     await Instance.provide(tmpDir, async () => {
       const { Plugin } = await import("../../src/plugin")
@@ -111,7 +106,7 @@ describe("Plugin tool.register hook", () => {
       expect(allIDs).toContain("from-plugin")
 
       // Also verify via the HTTP surface
-      const idsRes = await Server.App.fetch(makeRequest("GET", "http://localhost:4096/tool/ids"))
+      const idsRes = await Server.App.fetch(makeRequest("GET", "http://localhost:4096/experimental/tool/ids"))
       expect(idsRes.status).toBe(200)
       const ids = (await idsRes.json()) as string[]
       expect(ids).toContain("from-plugin")
@@ -174,7 +169,7 @@ test("Multiple plugins can each register tools", async () => {
     expect(ids).toContain("alpha-tool")
     expect(ids).toContain("beta-tool")
 
-    const res = await Server.App.fetch(new Request("http://localhost:4096/tool/ids"))
+    const res = await Server.App.fetch(new Request("http://localhost:4096/experimental/tool/ids"))
     expect(res.status).toBe(200)
     const httpIds = (await res.json()) as string[]
     expect(httpIds).toContain("alpha-tool")
@@ -232,10 +227,7 @@ test("Plugin registers native/local tool with function execution", async () => {
   `
   await Bun.write(pluginPath, pluginCode)
 
-  await Bun.write(
-    path.join(tmpDir, "opencode.json"),
-    JSON.stringify({ plugin: ["file://" + pluginPath] }, null, 2),
-  )
+  await Bun.write(path.join(tmpDir, "opencode.json"), JSON.stringify({ plugin: ["file://" + pluginPath] }, null, 2))
 
   await Instance.provide(tmpDir, async () => {
     const { Plugin } = await import("../../src/plugin")
@@ -250,7 +242,7 @@ test("Plugin registers native/local tool with function execution", async () => {
     expect(ids).toContain("http-tool-from-same-plugin")
 
     // Verify via HTTP endpoint
-    const res = await Server.App.fetch(new Request("http://localhost:4096/tool/ids"))
+    const res = await Server.App.fetch(new Request("http://localhost:4096/experimental/tool/ids"))
     expect(res.status).toBe(200)
     const httpIds = (await res.json()) as string[]
     expect(httpIds).toContain("my-native-tool")
@@ -258,11 +250,11 @@ test("Plugin registers native/local tool with function execution", async () => {
 
     // Get tool details to verify native tool has proper structure
     const toolsRes = await Server.App.fetch(
-      new Request("http://localhost:4096/tool?provider=anthropic&model=claude")
+      new Request("http://localhost:4096/experimental/tool?provider=anthropic&model=claude"),
     )
     expect(toolsRes.status).toBe(200)
     const tools = (await toolsRes.json()) as any[]
-    const nativeTool = tools.find(t => t.id === "my-native-tool")
+    const nativeTool = tools.find((t) => t.id === "my-native-tool")
     expect(nativeTool).toBeTruthy()
     expect(nativeTool.description).toBe("A native tool that runs local code")
     expect(nativeTool.parameters.properties.message).toBeTruthy()
@@ -286,10 +278,7 @@ test("Plugin without tool.register is handled gracefully", async () => {
   `
   await Bun.write(pluginPath, pluginSrc)
 
-  await Bun.write(
-    path.join(tmpDir, "opencode.json"),
-    JSON.stringify({ plugin: ["file://" + pluginPath] }, null, 2),
-  )
+  await Bun.write(path.join(tmpDir, "opencode.json"), JSON.stringify({ plugin: ["file://" + pluginPath] }, null, 2))
 
   await Instance.provide(tmpDir, async () => {
     const { Plugin } = await import("../../src/plugin")
@@ -302,7 +291,7 @@ test("Plugin without tool.register is handled gracefully", async () => {
     const ids = ToolRegistry.ids()
     expect(ids).not.toContain("malformed-tool")
 
-    const res = await Server.App.fetch(new Request("http://localhost:4096/tool/ids"))
+    const res = await Server.App.fetch(new Request("http://localhost:4096/experimental/tool/ids"))
     expect(res.status).toBe(200)
     const httpIds = (await res.json()) as string[]
     expect(httpIds).not.toContain("malformed-tool")

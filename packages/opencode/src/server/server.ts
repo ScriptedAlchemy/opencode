@@ -192,7 +192,7 @@ export namespace Server {
       },
     )
     .post(
-      "/tool/register",
+      "/experimental/tool/register",
       describeRoute({
         description: "Register a new HTTP callback tool",
         operationId: "tool.register",
@@ -215,7 +215,7 @@ export namespace Server {
       },
     )
     .get(
-      "/tool/ids",
+      "/experimental/tool/ids",
       describeRoute({
         description: "List all tool IDs (including built-in and dynamically registered)",
         operationId: "tool.ids",
@@ -236,7 +236,7 @@ export namespace Server {
       },
     )
     .get(
-      "/tool",
+      "/experimental/tool",
       describeRoute({
         description: "List tools with JSON schema parameters for a provider/model",
         operationId: "tool.list",
@@ -279,9 +279,7 @@ export namespace Server {
             id: t.id,
             description: t.description,
             // Handle both Zod schemas and plain JSON schemas
-            parameters: (t.parameters as any)?._def 
-              ? zodToJsonSchema(t.parameters as any)
-              : t.parameters,
+            parameters: (t.parameters as any)?._def ? zodToJsonSchema(t.parameters as any) : t.parameters,
           })),
         )
       },
