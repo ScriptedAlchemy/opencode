@@ -131,7 +131,7 @@ export default function Home() {
             <h3 data-component="title">homebrew</h3>
             <button data-copy data-slot="button">
               <span>
-                brew install <strong>sst/tap/opencode</strong>
+                brew install&nbsp;<strong>sst/tap/opencode</strong>
               </span>
               <CopyStatus />
             </button>
@@ -140,7 +140,7 @@ export default function Home() {
             <h3 data-component="title">paru</h3>
             <button data-copy data-slot="button">
               <span>
-                paru -S <strong>opencode-bin</strong>
+                paru -S&nbsp;<strong>opencode-bin</strong>
               </span>
               <CopyStatus />
             </button>
