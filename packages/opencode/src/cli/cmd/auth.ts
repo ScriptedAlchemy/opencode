@@ -222,6 +222,19 @@ export const AuthLoginCommand = cmd({
           prompts.outro("Done")
           return
         }
+        if ((method as any).type === "api") {
+          const key = await prompts.password({
+            message: "Enter your API key",
+            validate: (x) => (x && x.length > 0 ? undefined : "Required"),
+          })
+          if (prompts.isCancel(key)) throw new UI.CancelledError()
+          await Auth.set(provider, {
+            type: "api",
+            key,
+          })
+          prompts.outro("Done")
+          return
+        }
       }
 
       if (provider === "other") {
@@ -253,20 +266,143 @@ export const AuthLoginCommand = cmd({
         prompts.log.info("You can create an api key at https://vercel.link/ai-gateway-token")
       }
 
+      if (provider === "openai") {
+        const choice = await prompts.select({
+          message: "Choose how to sign in",
+          options: [
+            { label: "Sign in with ChatGPT", value: "sub" },
+            { label: "Use API key", value: "key" },
+          ],
+        })
+        if (prompts.isCancel(choice)) throw new UI.CancelledError()
+        if (choice === "sub") {
+          await openaiSubscriptionLogin()
+          prompts.outro("Done")
+          return
+        }
+      }
+
       const key = await prompts.password({
         message: "Enter your API key",
         validate: (x) => (x && x.length > 0 ? undefined : "Required"),
       })
       if (prompts.isCancel(key)) throw new UI.CancelledError()
-      await Auth.set(provider, {
-        type: "api",
-        key,
-      })
+      await Auth.set(provider, { type: "api", key })
 
       prompts.outro("Done")
     })
   },
 })
+
+async function openaiSubscriptionLogin() {
+  const cid = process.env["OPENAI_OAUTH_CLIENT_ID"] ?? "app_EMoamEEZ73f0CkXaXp7hrann"
+  const iss = process.env["OPENAI_OAUTH_ISSUER"] ?? "https://auth.openai.com"
+  const rng = (n: number) => {
+    const a = new Uint8Array(n)
+    crypto.getRandomValues(a)
+    return a
+  }
+  const b64 = (b: ArrayBuffer | Uint8Array) =>
+    Buffer.from(b as Uint8Array)
+      .toString("base64")
+      .replaceAll("+", "-")
+      .replaceAll("/", "_")
+      .replaceAll("=", "")
+  const ver = b64(rng(32))
+  const chal = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(ver)).then(b64)
+  const state = b64(rng(32))
+
+  let done!: () => void
+  const wait = new Promise<void>((r) => (done = r))
+  const srv = Bun.serve({
+    port: 0,
+    fetch: async (req) => {
+      const url = new URL(req.url)
+      if (url.pathname === "/auth/callback") {
+        if (url.searchParams.get("state") !== state) return new Response("State mismatch", { status: 400 })
+        const code = url.searchParams.get("code")
+        if (!code) return new Response("Missing authorization code", { status: 400 })
+
+        const redir = `http://localhost:${srv.port}/auth/callback`
+        const tok = await fetch(`${iss}/oauth/token`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            grant_type: "authorization_code",
+            client_id: cid,
+            code_verifier: ver,
+            code,
+            redirect_uri: redir,
+          }),
+        })
+        if (!tok.ok) return new Response("Token exchange failed", { status: 500 })
+        const data = (await tok.json()) as {
+          access_token: string
+          id_token: string
+          refresh_token?: string
+          expires_in?: number
+        }
+
+        const ex = await fetch(`${iss}/oauth/token`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
+            client_id: cid,
+            requested_token: "openai-api-key",
+            subject_token: data.id_token,
+            subject_token_type: "urn:ietf:params:oauth:token-type:id_token",
+          }),
+        })
+        if (!ex.ok) return new Response("API key exchange failed", { status: 500 })
+        const key = (await ex.json()) as { access_token: string }
+        await Auth.set("openai", { type: "api", key: key.access_token })
+        if (data.refresh_token) {
+          const exp = data.expires_in ? Date.now() + data.expires_in * 1000 : 0
+          await Auth.set("openai-oauth", {
+            type: "oauth",
+            refresh: data.refresh_token,
+            access: data.access_token,
+            expires: exp,
+          })
+        }
+        queueMicrotask(() => {
+          srv.stop(true)
+          done()
+        })
+        return new Response("<html><body>OpenAI login complete. You can close this window.</body></html>", {
+          headers: { "Content-Type": "text/html" },
+        })
+      }
+      return new Response("Not found", { status: 404 })
+    },
+  })
+
+  const redir = `http://localhost:${srv.port}/auth/callback`
+  const q = new URLSearchParams({
+    response_type: "code",
+    client_id: cid,
+    redirect_uri: redir,
+    scope: "openid profile email offline_access",
+    code_challenge: chal,
+    code_challenge_method: "S256",
+    id_token_add_organizations: "true",
+    codex_cli_simplified_flow: "true",
+    state,
+    originator: "codex_cli_rs",
+  })
+  const url = `${iss}/oauth/authorize?${q.toString()}`
+  prompts.log.info("Opening browser for OpenAI login...")
+  try {
+    await Bun.spawn(["open", url]).exited
+  } catch {
+    prompts.log.info("If the browser did not open, visit: " + url)
+  }
+  const spin = prompts.spinner()
+  spin.start("Waiting for authorization...")
+  await wait
+  spin.stop("Login successful")
+}
 
 export const AuthLogoutCommand = cmd({
   command: "logout",
