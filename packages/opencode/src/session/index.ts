@@ -365,6 +365,36 @@ export namespace Session {
     return part
   }
 
+  async function cleanupRevert(session: Info) {
+    if (!session.revert) return
+    const sessionID = session.id
+    let msgs = await messages(sessionID)
+    const messageID = session.revert.messageID
+    const [preserve, remove] = splitWhen(msgs, (x) => x.info.id === messageID)
+    msgs = preserve
+    for (const msg of remove) {
+      await Storage.remove(["message", sessionID, msg.info.id])
+      await Bus.publish(MessageV2.Event.Removed, { sessionID: sessionID, messageID: msg.info.id })
+    }
+    const last = preserve.at(-1)
+    if (session.revert.partID && last) {
+      const partID = session.revert.partID
+      const [preserveParts, removeParts] = splitWhen(last.parts, (x) => x.id === partID)
+      last.parts = preserveParts
+      for (const part of removeParts) {
+        await Storage.remove(["part", last.info.id, part.id])
+        await Bus.publish(MessageV2.Event.PartRemoved, {
+          sessionID: sessionID,
+          messageID: last.info.id,
+          partID: part.id,
+        })
+      }
+    }
+    await update(sessionID, (draft) => {
+      draft.revert = undefined
+    })
+  }
+
   export const PromptInput = z.object({
     sessionID: Identifier.schema("session"),
     messageID: Identifier.schema("message").optional(),
@@ -425,31 +455,7 @@ export namespace Session {
     // Process revert cleanup first, before creating new messages
     const session = await get(input.sessionID)
     if (session.revert) {
-      let msgs = await messages(input.sessionID)
-      const messageID = session.revert.messageID
-      const [preserve, remove] = splitWhen(msgs, (x) => x.info.id === messageID)
-      msgs = preserve
-      for (const msg of remove) {
-        await Storage.remove(["message", input.sessionID, msg.info.id])
-        await Bus.publish(MessageV2.Event.Removed, { sessionID: input.sessionID, messageID: msg.info.id })
-      }
-      const last = preserve.at(-1)
-      if (session.revert.partID && last) {
-        const partID = session.revert.partID
-        const [preserveParts, removeParts] = splitWhen(last.parts, (x) => x.id === partID)
-        last.parts = preserveParts
-        for (const part of removeParts) {
-          await Storage.remove(["part", last.info.id, part.id])
-          await Bus.publish(MessageV2.Event.PartRemoved, {
-            sessionID: input.sessionID,
-            messageID: last.info.id,
-            partID: part.id,
-          })
-        }
-      }
-      await update(input.sessionID, (draft) => {
-        draft.revert = undefined
-      })
+      cleanupRevert(session)
     }
     const userMsg: MessageV2.Info = {
       id: input.messageID ?? Identifier.ascending("message"),
@@ -691,16 +697,27 @@ export namespace Session {
 
     const lastSummary = msgs.findLast((msg) => msg.info.role === "assistant" && msg.info.summary === true)
     if (lastSummary) msgs = msgs.filter((msg) => msg.info.id >= lastSummary.info.id)
-
-    if (msgs.filter((m) => m.info.role === "user").length === 1 && !session.parentID && isDefaultTitle(session.title)) {
+    const numRealUserMsgs = msgs.filter(
+      (m) => m.info.role === "user" && !m.parts.every((p) => "synthetic" in p && p.synthetic),
+    ).length
+    if (numRealUserMsgs === 1 && !session.parentID && isDefaultTitle(session.title)) {
       const small = (await Provider.getSmallModel(model.providerID)) ?? model
+      const options = {
+        ...ProviderTransform.options(small.providerID, small.modelID, input.sessionID),
+        ...small.info.options,
+      }
+      if (small.providerID === "openai") {
+        options["reasoningEffort"] = "minimal"
+      }
+      if (small.providerID === "google") {
+        options["thinkingConfig"] = {
+          thinkingBudget: 0,
+        }
+      }
       generateText({
-        maxOutputTokens: small.info.reasoning ? 1024 : 20,
+        maxOutputTokens: small.info.reasoning ? 1500 : 20,
         providerOptions: {
-          [model.providerID]: {
-            ...small.info.options,
-            ...ProviderTransform.options(small.providerID, small.modelID, input.sessionID),
-          },
+          [model.providerID]: options,
         },
         messages: [
           ...SystemPrompt.title(model.providerID).map(
@@ -1008,7 +1025,7 @@ export namespace Session {
           : undefined,
       maxRetries: 3,
       activeTools: Object.keys(tools).filter((x) => x !== "invalid"),
-      maxOutputTokens: outputLimit,
+      maxOutputTokens: ProviderTransform.maxOutputTokens(model.providerID, outputLimit, params.options),
       abortSignal: abort.signal,
       stopWhen: async ({ steps }) => {
         if (steps.length >= 1000) {
@@ -1074,6 +1091,10 @@ export namespace Session {
   export type ShellInput = z.infer<typeof ShellInput>
   export async function shell(input: ShellInput) {
     using abort = lock(input.sessionID)
+    const session = await get(input.sessionID)
+    if (session.revert) {
+      cleanupRevert(session)
+    }
     const userMsg: MessageV2.User = {
       id: Identifier.ascending("message"),
       sessionID: input.sessionID,
