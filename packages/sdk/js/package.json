@@ -4,7 +4,8 @@
   "version": "0.6.5",
   "type": "module",
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:full-flow": "bun test-full-flow.mjs"
   },
   "exports": {
     ".": {

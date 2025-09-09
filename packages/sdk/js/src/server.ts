@@ -14,6 +14,8 @@ export type TuiOptions = {
   model?: string
   session?: string
   agent?: string
+  port?: number
+  hostname?: string
   signal?: AbortSignal
   config?: Config
 }
@@ -90,17 +92,25 @@ export async function createOpencodeServer(options?: ServerOptions) {
 export function createOpencodeTui(options?: TuiOptions) {
   const args = []
 
-  if (options?.project) {
-    args.push(`--project=${options.project}`)
-  }
-  if (options?.model) {
-    args.push(`--model=${options.model}`)
-  }
-  if (options?.session) {
-    args.push(`--session=${options.session}`)
-  }
-  if (options?.agent) {
-    args.push(`--agent=${options.agent}`)
+  // Convert options to command-line args (except signal and config)
+  if (options) {
+    for (const [key, value] of Object.entries(options)) {
+      // Skip signal and config - they're used for spawn options
+      if (key === 'signal' || key === 'config') continue
+
+      if (value !== undefined && value !== null) {
+        // Handle boolean flags
+        if (typeof value === 'boolean') {
+          if (value) {
+            args.push(`--${key}`)
+          }
+        } else {
+          // Convert camelCase to kebab-case for CLI args
+          const flagName = key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)
+          args.push(`--${flagName}=${value}`)
+        }
+      }
+    }
   }
 
   const proc = spawn(`opencode`, args, {
