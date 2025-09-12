@@ -2,6 +2,7 @@ import { Log } from "../util/log"
 import { Bus } from "../bus"
 import { describeRoute, generateSpecs, openAPISpecs } from "hono-openapi"
 import { Hono } from "hono"
+import { cors } from "hono/cors"
 import { streamSSE } from "hono/streaming"
 import { Session } from "../session"
 import { resolver, validator as zValidator } from "hono-openapi/zod"
@@ -90,6 +91,7 @@ export namespace Server {
         status: 400,
       })
     })
+    .use("*", cors())
     .use(async (c, next) => {
       const skipLogging = c.req.path === "/log"
       if (!skipLogging) {
